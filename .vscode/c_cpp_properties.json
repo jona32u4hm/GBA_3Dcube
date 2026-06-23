@@ -1,0 +1,21 @@
+{
+    "configurations": [
+        {
+            "name": "GBA-devkitARM",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/opt/devkitpro/devkitARM/arm-none-eabi/include/**",
+                "/opt/devkitpro/libtonc/include/**"
+            ],
+            "defines": [
+                "__GBA__",
+                "ARM"
+            ],
+            "compilerPath": "/opt/devkitpro/devkitARM/bin/arm-none-eabi-gcc",
+            "cStandard": "gnu11",
+            "cppStandard": "gnu++14",
+            "intelliSenseMode": "linux-gcc-arm"
+        }
+    ],
+    "version": 4
+}
