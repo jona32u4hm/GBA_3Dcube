@@ -61,8 +61,8 @@ int main()
             //    int           .4 -> int * .16
             FIXED proj_x = (((zrot_x*700) >> 4)* (s32)lu_div(z_awayfromcam) )>> 16;
             FIXED proj_y = (((zrot_y*700) >> 4)* (s32)lu_div(z_awayfromcam) )>> 16;
-            x2D[i] = 120 - (proj_x );  // 240 / 2 pre-calculated
-            y2D[i] = 80 + (proj_y );   // 160 / 2 pre-calculated
+            x2D[i] = 120 - (proj_x );  
+            y2D[i] = 80 + (proj_y );   
         }
 
 
