@@ -8,7 +8,7 @@ u16 r_y = 0x4000;
 u16 r_z = 0x4000;
 
 
-const int d = 7;
+const int d = 10;
 int x3D[] = { -d,  d,  d, -d, -d,  d,  d, -d };
 int y3D[] = { -d, -d,  d,  d, -d, -d,  d,  d };
 int z3D[] = { -d, -d, -d, -d,  d,  d,  d,  d };
@@ -25,7 +25,6 @@ int main()
     irq_init(NULL);
     irq_add(II_VBLANK, NULL);
 
-    m3_fill(CLR_BLUE);
     m3_rect(40, 20, 200, 140, CLR_BLACK);
 
 
@@ -40,27 +39,37 @@ int main()
         FIXED cosY = lu_cos(r_y), sinY = lu_sin(r_y);
         FIXED cosZ = lu_cos(r_z), sinZ = lu_sin(r_z);
 
+        VECTOR u, v, w;
+
+        // --- Basis Vector U (X-Axis Column) ---
+        u.x = (cosY * cosZ) >> 12;
+        u.y = (cosY * sinZ) >> 12;
+        u.z = -sinY;
+        // --- Basis Vector V (Y-Axis Column) ---
+        v.x = (((sinX * sinY) >> 12) * cosZ >> 12) - ((cosX * sinZ) >> 12);
+        v.y = (((sinX * sinY) >> 12) * sinZ >> 12) + ((cosX * cosZ) >> 12);
+        v.z = (sinX * cosY) >> 12;
+        // --- Basis Vector W (Z-Axis Column) ---
+        w.x = (((cosX * sinY) >> 12) * cosZ >> 12) + ((sinX * sinZ) >> 12);
+        w.y = (((cosX * sinY) >> 12) * sinZ >> 12) - ((sinX * cosZ) >> 12);
+        w.z = (cosX * cosY) >> 12;
+
         for (int i = 0; i < 8; i++) 
         {
-            // x rot:
-            FIXED xrot_y = ((cosX * y3D[i]) >> 8) - ((sinX * z3D[i]) >> 8);
-            FIXED xrot_z = ((sinX * y3D[i]) >> 8) + ((cosX * z3D[i]) >> 8);
-
-            // y rot:
-            FIXED yrot_x = ((cosY * x3D[i]) >> 8) + ((sinY * xrot_z) >> 12);
-            FIXED yrot_z = ((-sinY * x3D[i]) >> 8) + ((cosY * xrot_z) >> 12);
-
-            // z rot:
-            FIXED zrot_x = ((cosZ * yrot_x) >> 12) - ((sinZ * xrot_y) >> 12);
-            FIXED zrot_y = ((sinZ * yrot_x) >> 12) + ((cosZ * xrot_y) >> 12);
-            int z_awayfromcam = (200) - (yrot_z >> 4);;
-
-            // apply perspective
+                
+            FIXED rotated_x = ((x3D[i] * u.x) + (y3D[i] * v.x) + (z3D[i] * w.x)) >> 8;
+            FIXED rotated_y = ((x3D[i] * u.y) + (y3D[i] * v.y) + (z3D[i] * w.y)) >> 8;
+            FIXED rotated_z = ((x3D[i] * u.z) + (y3D[i] * v.z) + (z3D[i] * w.z)) >> 8;
             // all final rotations are in .4 format
 
+
+            int z_awayfromcam = (200) - (rotated_z >> 4);;
+
+            // apply perspective
+
             //    int           .4 -> int * .16
-            FIXED proj_x = (((zrot_x*700) >> 4)* (s32)lu_div(z_awayfromcam) )>> 16;
-            FIXED proj_y = (((zrot_y*700) >> 4)* (s32)lu_div(z_awayfromcam) )>> 16;
+            FIXED proj_x = (((rotated_x*700) >> 4)* (s32)lu_div(z_awayfromcam) )>> 16;
+            FIXED proj_y = (((rotated_y*700) >> 4)* (s32)lu_div(z_awayfromcam) )>> 16;
             x2D[i] = 120 - (proj_x );  
             y2D[i] = 80 + (proj_y );   
         }
@@ -68,30 +77,29 @@ int main()
 
 		VBlankIntrWait();
 
-        // Clear previous frame by drawing a black background rectangle over the rendering area
-        m3_rect(40, 20, 200, 140, CLR_BLACK);
+        m3_fill(CLR_BLACK);
 
 
 
         // --- BUILD CUBE ---
         
         // Front Face (Vertices 0, 1, 2, 3)
-        m3_line(x2D[0], y2D[0], x2D[1], y2D[1], CLR_CYAN);
-        m3_line(x2D[1], y2D[1], x2D[2], y2D[2], CLR_CYAN);
-        m3_line(x2D[2], y2D[2], x2D[3], y2D[3], CLR_CYAN);
-        m3_line(x2D[3], y2D[3], x2D[0], y2D[0], CLR_CYAN);
+        m3_line(x2D[0], y2D[0], x2D[1], y2D[1], CLR_MAG);
+        m3_line(x2D[1], y2D[1], x2D[2], y2D[2], CLR_MAG);
+        m3_line(x2D[2], y2D[2], x2D[3], y2D[3], CLR_MAG);
+        m3_line(x2D[3], y2D[3], x2D[0], y2D[0], CLR_MAG);
 
         // Back Face (Vertices 4, 5, 6, 7)
-        m3_line(x2D[4], y2D[4], x2D[5], y2D[5], CLR_RED);
-        m3_line(x2D[5], y2D[5], x2D[6], y2D[6], CLR_RED);
-        m3_line(x2D[6], y2D[6], x2D[7], y2D[7], CLR_RED);
-        m3_line(x2D[7], y2D[7], x2D[4], y2D[4], CLR_RED);
+        m3_line(x2D[4], y2D[4], x2D[5], y2D[5], CLR_CYAN);
+        m3_line(x2D[5], y2D[5], x2D[6], y2D[6], CLR_CYAN);
+        m3_line(x2D[6], y2D[6], x2D[7], y2D[7], CLR_CYAN);
+        m3_line(x2D[7], y2D[7], x2D[4], y2D[4], CLR_CYAN);
 
         // Interconnecting Lines (Front to Back)
-        m3_line(x2D[0], y2D[0], x2D[4], y2D[4], CLR_MAG);
-        m3_line(x2D[1], y2D[1], x2D[5], y2D[5], CLR_MAG);
-        m3_line(x2D[2], y2D[2], x2D[6], y2D[6], CLR_MAG);
-        m3_line(x2D[3], y2D[3], x2D[7], y2D[7], CLR_MAG);
+        m3_line(x2D[0], y2D[0], x2D[4], y2D[4], CLR_RED);
+        m3_line(x2D[1], y2D[1], x2D[5], y2D[5], CLR_RED);
+        m3_line(x2D[2], y2D[2], x2D[6], y2D[6], CLR_RED);
+        m3_line(x2D[3], y2D[3], x2D[7], y2D[7], CLR_RED);
     }
     return 0;
 }
