@@ -14,14 +14,21 @@ u16 r_z = 0x4000;
 
 
 const int d = 5;
-int x3D[] = { -d,  d,  d, -d, -d,  d,  d, -d };
-int y3D[] = { -d, -d,  d,  d, -d, -d,  d,  d };
-int z3D[] = { -d, -d, -d, -d,  d,  d,  d,  d };
-int x2D[] = {
-    0, 0, 0, 0, 0, 0, 0, 0};
-int y2D[] = {
-    0, 0, 0, 0, 0, 0, 0, 0};
 
+const VECTOR cube_vertices[] ALIGN4 = {
+    {-d,-d,-d},
+    { d,-d,-d},
+    { d, d,-d},
+    {-d, d,-d},
+    {-d,-d, d},
+    { d,-d, d},
+    { d, d, d},
+    {-d, d, d}
+};
+
+
+
+POINT p2D[8];
 
 int main()
 {
@@ -63,24 +70,23 @@ int main()
         w.y = (((cosX * sinY) >> 12) * sinZ >> 12) - ((sinX * cosZ) >> 12);
         w.z = (cosX * cosY) >> 12;
 
-        int* x = x3D;
-        int* y = y3D;
-        int* z = z3D;
-        int* x2 = x2D;
-        int* y2 = y2D;
+
+        const VECTOR* v3D = cube_vertices;
+
+
+        POINT* v2D = p2D;
 
 
         for (int i = 0; i < 8; i++) 
         {
             // current point 
-            FIXED cx = *x++; 
-            FIXED cy = *y++;
-            FIXED cz = *z++;
+
+            VECTOR c = *v3D++;
 
             // rotate
-            FIXED rotated_x = ((cx * u.x) + (cy * v.x) + (cz * w.x)) >> 8;
-            FIXED rotated_y = ((cx * u.y) + (cy * v.y) + (cz * w.y)) >> 8;
-            FIXED rotated_z = ((cx * u.z) + (cy * v.z) + (cz * w.z)) >> 8;
+            FIXED rotated_x = ((c.x * u.x) + (c.y * v.x) + (c.z * w.x)) >> 8;
+            FIXED rotated_y = ((c.x * u.y) + (c.y * v.y) + (c.z * w.y)) >> 8;
+            FIXED rotated_z = ((c.x * u.z) + (c.y * v.z) + (c.z * w.z)) >> 8;
             // all final rotations are in .4 format
 
 
@@ -89,10 +95,12 @@ int main()
             // apply perspective
 
             //    int           .4 -> int * .16
-            int proj_x = (((rotated_x*700) >> 4)* (s32)lu_div(z_awayfromcam) )>> 16;
-            int proj_y = (((rotated_y*700) >> 4)* (s32)lu_div(z_awayfromcam) )>> 16;
-            *x2++ = CX - proj_x;
-            *y2++ = CY + proj_y;  
+            int proj_x = (((rotated_x*700) )* (s32)lu_div(z_awayfromcam) )>> 20;
+            int proj_y = (((rotated_y*700) )* (s32)lu_div(z_awayfromcam) )>> 20;
+
+            v2D->x = CX - proj_x;
+            v2D->y = CY + proj_y;
+            v2D++;
         }
 
         VBlankIntrWait();
@@ -100,24 +108,23 @@ int main()
         m5_fill(CLR_BLACK);
 
         // --- BUILD CUBE ---
-        
         // Front Face (Vertices 0, 1, 2, 3)
-        m5_line(x2D[0], y2D[0], x2D[1], y2D[1], CLR_MAG);
-        m5_line(x2D[1], y2D[1], x2D[2], y2D[2], CLR_MAG);
-        m5_line(x2D[2], y2D[2], x2D[3], y2D[3], CLR_MAG);
-        m5_line(x2D[3], y2D[3], x2D[0], y2D[0], CLR_MAG);
+        m5_line(p2D[0].x, p2D[0].y, p2D[1].x, p2D[1].y, CLR_MAG);
+        m5_line(p2D[1].x, p2D[1].y, p2D[2].x, p2D[2].y, CLR_MAG);
+        m5_line(p2D[2].x, p2D[2].y, p2D[3].x, p2D[3].y, CLR_MAG);
+        m5_line(p2D[3].x, p2D[3].y, p2D[0].x, p2D[0].y, CLR_MAG);
 
         // Back Face (Vertices 4, 5, 6, 7)
-        m5_line(x2D[4], y2D[4], x2D[5], y2D[5], CLR_CYAN);
-        m5_line(x2D[5], y2D[5], x2D[6], y2D[6], CLR_CYAN);
-        m5_line(x2D[6], y2D[6], x2D[7], y2D[7], CLR_CYAN);
-        m5_line(x2D[7], y2D[7], x2D[4], y2D[4], CLR_CYAN);
+        m5_line(p2D[4].x, p2D[4].y, p2D[5].x, p2D[5].y, CLR_CYAN);
+        m5_line(p2D[5].x, p2D[5].y, p2D[6].x, p2D[6].y, CLR_CYAN);
+        m5_line(p2D[6].x, p2D[6].y, p2D[7].x, p2D[7].y, CLR_CYAN);
+        m5_line(p2D[7].x, p2D[7].y, p2D[4].x, p2D[4].y, CLR_CYAN);
 
         // Interconnecting Lines (Front to Back)
-        m5_line(x2D[0], y2D[0], x2D[4], y2D[4], CLR_RED);
-        m5_line(x2D[1], y2D[1], x2D[5], y2D[5], CLR_RED);
-        m5_line(x2D[2], y2D[2], x2D[6], y2D[6], CLR_RED);
-        m5_line(x2D[3], y2D[3], x2D[7], y2D[7], CLR_RED);
+        m5_line(p2D[0].x, p2D[0].y, p2D[4].x, p2D[4].y, CLR_RED);
+        m5_line(p2D[1].x, p2D[1].y, p2D[5].x, p2D[5].y, CLR_RED);
+        m5_line(p2D[2].x, p2D[2].y, p2D[6].x, p2D[6].y, CLR_RED);
+        m5_line(p2D[3].x, p2D[3].y, p2D[7].x, p2D[7].y, CLR_RED);
         vid_flip();
     }
     return 0;
