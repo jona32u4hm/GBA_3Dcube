@@ -2,31 +2,40 @@
 #include <stdio.h>
 #include <tonc.h>
 
+#define VIEW_W 160
+#define VIEW_H 128
+
+#define CX (VIEW_W/2)
+#define CY (VIEW_H/2)
 
 u16 r_x = 0x4000;
 u16 r_y = 0x4000;
 u16 r_z = 0x4000;
 
 
-const int d = 10;
+const int d = 5;
 int x3D[] = { -d,  d,  d, -d, -d,  d,  d, -d };
 int y3D[] = { -d, -d,  d,  d, -d, -d,  d,  d };
 int z3D[] = { -d, -d, -d, -d,  d,  d,  d,  d };
-FIXED x2D[] = {
+int x2D[] = {
     0, 0, 0, 0, 0, 0, 0, 0};
-FIXED y2D[] = {
+int y2D[] = {
     0, 0, 0, 0, 0, 0, 0, 0};
 
 
 int main()
 {
-    REG_DISPCNT = DCNT_MODE3 | DCNT_BG2;
+    REG_DISPCNT = DCNT_MODE5 | DCNT_BG2;
+    REG_BG2CNT = BG_CBB(0) | BG_SBB(0) | BG_AFF_32x32;
+    REG_BG2PA = 256;  // Set X-scaling to 1.0 (8.8 fixed point)
+    REG_BG2PD = 256;  // Set Y-scaling to 1.0 (8.8 fixed point)
+    REG_BG2X = -40 << 8;  // Shifts the viewport 40 pixels right
+    REG_BG2Y = -16 << 8;  // Shifts the viewport 16 pixels down
 
     irq_init(NULL);
     irq_add(II_VBLANK, NULL);
 
-    m3_rect(40, 20, 200, 140, CLR_BLACK);
-
+    vid_page = vid_mem;
 
     while(1)
 	{
@@ -54,52 +63,62 @@ int main()
         w.y = (((cosX * sinY) >> 12) * sinZ >> 12) - ((sinX * cosZ) >> 12);
         w.z = (cosX * cosY) >> 12;
 
+        int* x = x3D;
+        int* y = y3D;
+        int* z = z3D;
+        int* x2 = x2D;
+        int* y2 = y2D;
+
+
         for (int i = 0; i < 8; i++) 
         {
-                
-            FIXED rotated_x = ((x3D[i] * u.x) + (y3D[i] * v.x) + (z3D[i] * w.x)) >> 8;
-            FIXED rotated_y = ((x3D[i] * u.y) + (y3D[i] * v.y) + (z3D[i] * w.y)) >> 8;
-            FIXED rotated_z = ((x3D[i] * u.z) + (y3D[i] * v.z) + (z3D[i] * w.z)) >> 8;
+            // current point 
+            FIXED cx = *x++; 
+            FIXED cy = *y++;
+            FIXED cz = *z++;
+
+            // rotate
+            FIXED rotated_x = ((cx * u.x) + (cy * v.x) + (cz * w.x)) >> 8;
+            FIXED rotated_y = ((cx * u.y) + (cy * v.y) + (cz * w.y)) >> 8;
+            FIXED rotated_z = ((cx * u.z) + (cy * v.z) + (cz * w.z)) >> 8;
             // all final rotations are in .4 format
 
 
-            int z_awayfromcam = (200) - (rotated_z >> 4);;
+            int z_awayfromcam = (100) - (rotated_z >> 4);;
 
             // apply perspective
 
             //    int           .4 -> int * .16
-            FIXED proj_x = (((rotated_x*700) >> 4)* (s32)lu_div(z_awayfromcam) )>> 16;
-            FIXED proj_y = (((rotated_y*700) >> 4)* (s32)lu_div(z_awayfromcam) )>> 16;
-            x2D[i] = 120 - (proj_x );  
-            y2D[i] = 80 + (proj_y );   
+            int proj_x = (((rotated_x*700) >> 4)* (s32)lu_div(z_awayfromcam) )>> 16;
+            int proj_y = (((rotated_y*700) >> 4)* (s32)lu_div(z_awayfromcam) )>> 16;
+            *x2++ = CX - proj_x;
+            *y2++ = CY + proj_y;  
         }
 
+        VBlankIntrWait();
 
-		VBlankIntrWait();
-
-        m3_fill(CLR_BLACK);
-
-
+        m5_fill(CLR_BLACK);
 
         // --- BUILD CUBE ---
         
         // Front Face (Vertices 0, 1, 2, 3)
-        m3_line(x2D[0], y2D[0], x2D[1], y2D[1], CLR_MAG);
-        m3_line(x2D[1], y2D[1], x2D[2], y2D[2], CLR_MAG);
-        m3_line(x2D[2], y2D[2], x2D[3], y2D[3], CLR_MAG);
-        m3_line(x2D[3], y2D[3], x2D[0], y2D[0], CLR_MAG);
+        m5_line(x2D[0], y2D[0], x2D[1], y2D[1], CLR_MAG);
+        m5_line(x2D[1], y2D[1], x2D[2], y2D[2], CLR_MAG);
+        m5_line(x2D[2], y2D[2], x2D[3], y2D[3], CLR_MAG);
+        m5_line(x2D[3], y2D[3], x2D[0], y2D[0], CLR_MAG);
 
         // Back Face (Vertices 4, 5, 6, 7)
-        m3_line(x2D[4], y2D[4], x2D[5], y2D[5], CLR_CYAN);
-        m3_line(x2D[5], y2D[5], x2D[6], y2D[6], CLR_CYAN);
-        m3_line(x2D[6], y2D[6], x2D[7], y2D[7], CLR_CYAN);
-        m3_line(x2D[7], y2D[7], x2D[4], y2D[4], CLR_CYAN);
+        m5_line(x2D[4], y2D[4], x2D[5], y2D[5], CLR_CYAN);
+        m5_line(x2D[5], y2D[5], x2D[6], y2D[6], CLR_CYAN);
+        m5_line(x2D[6], y2D[6], x2D[7], y2D[7], CLR_CYAN);
+        m5_line(x2D[7], y2D[7], x2D[4], y2D[4], CLR_CYAN);
 
         // Interconnecting Lines (Front to Back)
-        m3_line(x2D[0], y2D[0], x2D[4], y2D[4], CLR_RED);
-        m3_line(x2D[1], y2D[1], x2D[5], y2D[5], CLR_RED);
-        m3_line(x2D[2], y2D[2], x2D[6], y2D[6], CLR_RED);
-        m3_line(x2D[3], y2D[3], x2D[7], y2D[7], CLR_RED);
+        m5_line(x2D[0], y2D[0], x2D[4], y2D[4], CLR_RED);
+        m5_line(x2D[1], y2D[1], x2D[5], y2D[5], CLR_RED);
+        m5_line(x2D[2], y2D[2], x2D[6], y2D[6], CLR_RED);
+        m5_line(x2D[3], y2D[3], x2D[7], y2D[7], CLR_RED);
+        vid_flip();
     }
     return 0;
 }
